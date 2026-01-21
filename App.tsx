@@ -11,22 +11,23 @@ import PipelineColumn from './components/PipelineColumn';
 import { dataService } from './services/dataService';
 import { KPI, ChartData, FunnelStep, SellerMetric, ChartDataPoint, PipelineMetrics } from './types';
 
-const MONTH_OPTIONS = [
-  { value: '2023-08', label: 'Agosto 2023' },
-  { value: '2023-09', label: 'Setembro 2023' },
-  { value: '2023-10', label: 'Outubro 2023' },
-  { value: '2023-11', label: 'Novembro 2023' },
-  { value: '2023-12', label: 'Dezembro 2023' },
-  { value: '2024-01', label: 'Janeiro 2024' },
+const YEARS = [2023, 2024, 2025, 2026];
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'legacy'>('dashboard');
-  const [selectedMonth, setSelectedMonth] = useState<string>('2023-10'); // Default to a month with good data
+  
+  // State for Month and Year selection
+  const [selectedYear, setSelectedYear] = useState<number>(2023);
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(9); // Default to October (index 9)
   
   // Dashboard Data
   const [kpis, setKPIs] = useState<{ totalValue: KPI, count: KPI } | null>(null);
-  const [sellerData, setSellerData] = useState<SellerMetric[]>([]);
+  const [sellerCreated, setSellerCreated] = useState<SellerMetric[]>([]);
+  const [sellerClosed, setSellerClosed] = useState<SellerMetric[]>([]);
   const [planData, setPlanData] = useState<ChartData[]>([]);
   const [sourceData, setSourceData] = useState<ChartData[]>([]);
   const [funnelData, setFunnelData] = useState<FunnelStep[]>([]);
@@ -38,23 +39,27 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
 
+  // Compute the YYYY-MM string for the service
+  const currentMonthString = `${selectedYear}-${String(selectedMonthIndex + 1).padStart(2, '0')}`;
+
   useEffect(() => {
     const loadData = async () => {
-      // setIsLoading(true); // Optional: Trigger loading on month change if data fetch was real/slow
+      setIsLoading(true); 
       try {
         await dataService.fetchDeals();
         
         // Load New Dashboard Data (Filtered by Selected Month)
-        setKPIs(dataService.getKPIs(selectedMonth));
-        setSellerData(dataService.getSellerPerformance(selectedMonth));
-        setPlanData(dataService.getPlanDistribution(selectedMonth));
-        setSourceData(dataService.getSourceDistribution(selectedMonth));
-        setFunnelData(dataService.getSalesFunnel(selectedMonth));
+        setKPIs(dataService.getKPIs(currentMonthString));
+        setSellerCreated(dataService.getSellerCreated(currentMonthString));
+        setSellerClosed(dataService.getSellerClosed(currentMonthString));
+        setPlanData(dataService.getPlanDistribution(currentMonthString));
+        setSourceData(dataService.getSourceDistribution(currentMonthString));
+        setFunnelData(dataService.getSalesFunnel(currentMonthString));
 
         // Load Legacy Data (Filtered by Selected Month)
-        setEvolutionWon(dataService.getEvolutionData('won', selectedMonth));
-        setEvolutionLost(dataService.getEvolutionData('lost', selectedMonth));
-        setPipelineMetrics(dataService.getPipelineMetrics(selectedMonth));
+        setEvolutionWon(dataService.getEvolutionData('won', currentMonthString));
+        setEvolutionLost(dataService.getEvolutionData('lost', currentMonthString));
+        setPipelineMetrics(dataService.getPipelineMetrics(currentMonthString));
 
       } catch (error) {
         console.error("Failed to load dashboard data", error);
@@ -64,7 +69,7 @@ const App: React.FC = () => {
     };
 
     loadData();
-  }, [selectedMonth]); // Reload when month changes
+  }, [currentMonthString]);
 
   if (isLoading) {
     return (
@@ -88,19 +93,37 @@ const App: React.FC = () => {
              <div className="flex items-center gap-8">
                  <Logo />
                  
-                 {/* Month Selector */}
-                 <div className="relative">
-                    <select 
-                      value={selectedMonth} 
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="bg-[#181b21] border border-gray-700 text-white text-xs font-semibold rounded-md pl-3 pr-8 py-2 focus:outline-none focus:border-adv-gold focus:ring-1 focus:ring-adv-gold appearance-none cursor-pointer uppercase tracking-wider hover:bg-[#22262e] transition-colors"
-                    >
-                        {MONTH_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                 <div className="flex gap-2">
+                    {/* Month Selector */}
+                    <div className="relative">
+                        <select 
+                        value={selectedMonthIndex} 
+                        onChange={(e) => setSelectedMonthIndex(Number(e.target.value))}
+                        className="bg-[#181b21] border border-gray-700 text-white text-xs font-semibold rounded-md pl-3 pr-8 py-2 focus:outline-none focus:border-adv-gold focus:ring-1 focus:ring-adv-gold appearance-none cursor-pointer uppercase tracking-wider hover:bg-[#22262e] transition-colors"
+                        >
+                            {MONTHS.map((m, index) => (
+                                <option key={index} value={index}>{m}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
+                    </div>
+
+                    {/* Year Selector */}
+                    <div className="relative">
+                        <select 
+                        value={selectedYear} 
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="bg-[#181b21] border border-gray-700 text-white text-xs font-semibold rounded-md pl-3 pr-8 py-2 focus:outline-none focus:border-adv-gold focus:ring-1 focus:ring-adv-gold appearance-none cursor-pointer uppercase tracking-wider hover:bg-[#22262e] transition-colors"
+                        >
+                            {YEARS.map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
                     </div>
                  </div>
              </div>
@@ -137,7 +160,7 @@ const App: React.FC = () => {
         {activeTab === 'dashboard' && (
           <>
             {/* Row 1: KPIs & Seller Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-auto lg:h-[180px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:h-[180px]">
               {kpis && (
                   <KPICard 
                       kpi={kpis.totalValue} 
@@ -152,15 +175,18 @@ const App: React.FC = () => {
                   />
               )}
 
-              <SellerChart data={sellerData} title="Criados" />
-              <SellerChart data={sellerData} title="Efetivos" />
+              {/* Created in Month */}
+              <SellerChart data={sellerCreated} title="Criados (Neste Mês)" />
+              
+              {/* Closed in Month (Effective) */}
+              <SellerChart data={sellerClosed} title="Efetivos (Neste Mês)" />
             </div>
 
             {/* Row 2: Distribution Charts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto lg:h-[260px]">
-                <DonutWidget data={planData} title="Distribuição de Planos - Contratos" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:h-[260px]">
+                <DonutWidget data={planData} title="Distribuição de Planos" />
                 <DonutWidget data={sourceData} title="Canais de Origem" />
-                <SellerChart data={sellerData} title="Criados Hoje" />
+                 <SellerChart data={sellerCreated} title="Performance por Vendedor" />
             </div>
 
             {/* Row 3: Funnel */}
@@ -192,7 +218,7 @@ const App: React.FC = () => {
                 {evolutionWon && (
                   <EvolutionChart 
                     title="EVOLUÇÃO - RECUPERADO" 
-                    subtitle="Performance dos últimos 6 meses"
+                    subtitle={`Performance diária: ${MONTHS[selectedMonthIndex]} ${selectedYear}`}
                     totalValue={evolutionWon.totalValue}
                     totalCount={evolutionWon.totalCount}
                     data={evolutionWon.data}
@@ -204,7 +230,7 @@ const App: React.FC = () => {
                 {evolutionLost && (
                   <EvolutionChart 
                     title="EVOLUÇÃO - CANCELADO" 
-                    subtitle="Performance dos últimos 6 meses"
+                    subtitle={`Performance diária: ${MONTHS[selectedMonthIndex]} ${selectedYear}`}
                     totalValue={evolutionLost.totalValue}
                     totalCount={evolutionLost.totalCount}
                     data={evolutionLost.data}
