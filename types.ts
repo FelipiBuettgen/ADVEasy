@@ -11,7 +11,10 @@ export interface Deal {
   lost_time: string | null;
   close_time: string | null;
   owner_id: number;
+  owner_name: string; // Added owner name for grouping
   lost_reason: string | null;
+  products_count?: number; // Mocked field for "Planos"
+  source?: string; // Mocked field for "Canais"
 }
 
 export interface Stage {
@@ -19,22 +22,51 @@ export interface Stage {
   name: string;
   pipeline_id: number;
   pipeline_name: string;
+  order_nr?: number;
 }
 
-export interface PipelineMetrics {
-  id: number;
+export interface KPI {
+  label: string;
+  value: number | string;
+  subValue?: string;
+  trend?: number; // percentage
+  trendLabel?: string;
+  type: 'currency' | 'number';
+}
+
+export interface ChartData {
   name: string;
-  totalValueWon: number;
-  totalValueLost: number;
-  totalValueOpen: number;
-  countWon: number;
-  countLost: number;
-  countOpen: number;
-  goal: number; // Mocked goal for visualization
+  value: number;
+  fill?: string;
+}
+
+export interface FunnelStep {
+  name: string;
+  count: number;
+  value: number;
+  conversionRate?: number;
+}
+
+export interface SellerMetric {
+  name: string;
+  won: number;
+  lost: number;
+  open: number;
+  total: number;
 }
 
 export interface ChartDataPoint {
   date: string;
   value: number;
-  count: number;
+}
+
+export interface PipelineMetrics {
+  name: string;
+  goal: number;
+  totalValueWon: number;
+  countWon: number;
+  totalValueOpen: number;
+  countOpen: number;
+  totalValueLost: number;
+  countLost: number;
 }
