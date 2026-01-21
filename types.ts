@@ -38,6 +38,7 @@ export interface ChartData {
   name: string;
   value: number;
   fill?: string;
+  [key: string]: any;
 }
 
 export interface FunnelStep {
@@ -45,6 +46,7 @@ export interface FunnelStep {
   count: number;
   value: number;
   conversionRate?: number;
+  [key: string]: any;
 }
 
 export interface SellerMetric {
@@ -53,11 +55,13 @@ export interface SellerMetric {
   lost: number;
   open: number;
   total: number;
+  [key: string]: any;
 }
 
 export interface ChartDataPoint {
   date: string;
   value: number;
+  [key: string]: any;
 }
 
 export interface PipelineMetrics {

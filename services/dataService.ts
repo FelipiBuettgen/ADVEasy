@@ -4,8 +4,7 @@ import * as d3 from 'd3';
 // --- CONFIGURAÇÃO ---
 const API_TOKEN = (import.meta as any).env?.VITE_PIPEDRIVE_TOKEN || '1fc6fffd00cbb8c53be5778629b176c6d3eced91'; 
 
-// Proxy configurado no vercel.json (Prod) e vite.config.ts (Dev)
-// O proxy redireciona /api/pipe/v1 -> https://api.pipedrive.com/v1
+
 const BASE_URL = 'https://api.pipedrive.com/api'; 
 
 // IDs DE CAMPOS PERSONALIZADOS
@@ -23,6 +22,18 @@ export class DataService {
 
   constructor() {
     // Inicialmente vazio
+  }
+
+  /**
+   * Helper para formatar nome curto (Ex: "João Silva" -> "João S.")
+   */
+  private shortenName(name: string): string {
+    if (!name) return 'N/A';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    // Retorna Primeiro Nome + Inicial do último sobrenome maiúscula
+    const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+    return `${parts[0]} ${lastInitial}.`;
   }
 
   /**
@@ -58,7 +69,8 @@ export class DataService {
 
         if (json.data && Array.isArray(json.data)) {
             json.data.forEach((u: any) => {
-                this.usersCache.set(u.id, u.name);
+                // Armazena já o nome encurtado no cache
+                this.usersCache.set(u.id, this.shortenName(u.name));
             });
             console.log(`Usuários carregados: ${this.usersCache.size}`);
         }
@@ -113,9 +125,6 @@ export class DataService {
             const queryParams = new URLSearchParams({
                 api_token: API_TOKEN,
                 limit: '500',
-                // Removido status=all_not_deleted pois na V2 pode variar, 
-                // mas se precisar de tudo, verifique a doc da V2. 
-                // Por padrão v2/deals lista deals abertos. 
             });
 
             if (cursor) {
@@ -148,7 +157,12 @@ export class DataService {
             // Resolver ID e Nome do Dono
             // Na v2, user_id pode vir apenas como ID (int) ou objeto dependendo do endpoint.
             const userId = (typeof d.user_id === 'object' && d.user_id !== null) ? d.user_id.id : d.user_id;
-            const ownerName = this.usersCache.get(d.owner_id) || d.owner_id || 'Sem Dono';
+            
+            // Tenta pegar do cache (encurtado), senão pega do deal, senão fallback
+            let ownerName = this.usersCache.get(d.owner_id);
+            if (!ownerName) {
+                ownerName = d.owner_name ? this.shortenName(d.owner_name) : 'Sem Dono';
+            }
 
             return {
                 id: d.id,
@@ -163,7 +177,7 @@ export class DataService {
                 lost_time: d.lost_time,
                 close_time: d.close_time,
                 owner_id: userId,
-                owner_name: ownerName, // Nome resolvido via Cache de Usuários
+                owner_name: ownerName, 
                 lost_reason: d.lost_reason,
                 products_count: d.products_count || 0, 
                 source: d[CUSTOM_FIELDS.SOURCE] || 'Outros' 

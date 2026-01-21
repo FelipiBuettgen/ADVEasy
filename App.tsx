@@ -163,7 +163,7 @@ const App: React.FC = () => {
         {activeTab === 'dashboard' && (
           <>
             {/* Row 1: KPIs & Seller Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:h-[180px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:h-[240px]">
               {kpis && (
                   <KPICard 
                       kpi={kpis.totalValue} 
