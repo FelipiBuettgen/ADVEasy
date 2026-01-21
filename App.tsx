@@ -20,9 +20,12 @@ const MONTHS = [
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'legacy'>('dashboard');
   
-  // State for Month and Year selection
-  const [selectedYear, setSelectedYear] = useState<number>(2023);
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(9); // Default to October (index 9)
+  // Data atual para inicialização
+  const now = new Date();
+
+  // State for Month and Year selection (Initialized to Current Date)
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(now.getMonth());
   
   // Dashboard Data
   const [kpis, setKPIs] = useState<{ totalValue: KPI, count: KPI } | null>(null);

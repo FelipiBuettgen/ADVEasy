@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/pipe/:match*", "destination": "https://api.pipedrive.com/api/:match*" },
+    { "source": "/api/pipe/:match*", "destination": "https://api.pipedrive.com/:match*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

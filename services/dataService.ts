@@ -4,8 +4,10 @@ import * as d3 from 'd3';
 // --- CONFIGURAÇÃO ---
 const API_TOKEN = (import.meta as any).env?.VITE_PIPEDRIVE_TOKEN || '1fc6fffd00cbb8c53be5778629b176c6d3eced91'; 
 
-// Proxy agora aponta para a raiz da API (/api), permitindo escolher v1 ou v2 na chamada 
-const BASE_URL = "https://api.pipedrive.com/api"
+// Proxy configurado no vercel.json (Prod) e vite.config.ts (Dev)
+// O proxy redireciona /api/pipe/v1 -> https://api.pipedrive.com/v1
+const BASE_URL = 'https://api.pipedrive.com/api'; 
+
 // IDs DE CAMPOS PERSONALIZADOS
 const CUSTOM_FIELDS = {
     SOURCE: 'source_field_key', 
@@ -17,6 +19,7 @@ export class DataService {
   private stages: Stage[] = [];
   // Cache para armazenar ID -> Nome do usuário
   private usersCache: Map<number, string> = new Map();
+  private isDealsLoaded = false;
 
   constructor() {
     // Inicialmente vazio
@@ -45,7 +48,7 @@ export class DataService {
 
   // --- 1. BUSCA DE USUÁRIOS (V1) ---
   private async fetchUsers(): Promise<void> {
-    // Se já tiver cache, não busca novamente nesta sessão (ou adicione lógica de expiração se desejar)
+    // Se já tiver cache, não busca novamente
     if (this.usersCache.size > 0) return;
 
     try {
@@ -61,11 +64,14 @@ export class DataService {
         }
     } catch (e) {
         console.error("Erro ao buscar usuários:", e);
+        // Não lançar erro para não bloquear o restante, mas logar
     }
   }
 
   // --- 2. BUSCA DE ESTÁGIOS (V1) ---
   private async fetchStages(): Promise<void> {
+      if (this.stages.length > 0) return;
+
       try {
         // Stages geralmente ficam na v1
         const url = `${BASE_URL}/v1/stages?api_token=${API_TOKEN}`;
@@ -92,6 +98,9 @@ export class DataService {
         return;
     }
 
+    // Se já carregou, não busca de novo (Cache em memória)
+    if (this.isDealsLoaded) return;
+
     try {
         // Carrega dependências (Usuários e Estágios) antes dos Negócios
         await Promise.all([this.fetchUsers(), this.fetchStages()]);
@@ -104,7 +113,9 @@ export class DataService {
             const queryParams = new URLSearchParams({
                 api_token: API_TOKEN,
                 limit: '500',
-                // status: 'all_not_deleted' // V2 pode ter comportamento diferente, ajustando se necessário
+                // Removido status=all_not_deleted pois na V2 pode variar, 
+                // mas se precisar de tudo, verifique a doc da V2. 
+                // Por padrão v2/deals lista deals abertos. 
             });
 
             if (cursor) {
@@ -137,7 +148,7 @@ export class DataService {
             // Resolver ID e Nome do Dono
             // Na v2, user_id pode vir apenas como ID (int) ou objeto dependendo do endpoint.
             const userId = (typeof d.user_id === 'object' && d.user_id !== null) ? d.user_id.id : d.user_id;
-            const ownerName = this.usersCache.get(userId) || d.owner_name || 'Sem Dono';
+            const ownerName = this.usersCache.get(d.owner_id) || d.owner_id || 'Sem Dono';
 
             return {
                 id: d.id,
@@ -158,6 +169,8 @@ export class DataService {
                 source: d[CUSTOM_FIELDS.SOURCE] || 'Outros' 
             };
         });
+
+        this.isDealsLoaded = true;
 
     } catch (error) {
         console.error("Erro fatal ao buscar dados do Pipedrive (V2):", error);
