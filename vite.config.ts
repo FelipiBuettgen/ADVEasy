@@ -8,7 +8,7 @@ export default defineConfig({
       '/api/pipe': {
         target: 'https://api.pipedrive.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/pipe/, '/api/v2'),
+        rewrite: (path) => path.replace(/^\/api\/pipe/, '/api'),
         secure: false,
       },
     },

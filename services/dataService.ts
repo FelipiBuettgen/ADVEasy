@@ -2,13 +2,10 @@ import { Deal, Stage, KPI, ChartData, FunnelStep, SellerMetric, ChartDataPoint, 
 import * as d3 from 'd3';
 
 // --- CONFIGURAÇÃO ---
-// Token atualizado para V2 conforme solicitado
 const API_TOKEN = (import.meta as any).env?.VITE_PIPEDRIVE_TOKEN || '1fc6fffd00cbb8c53be5778629b176c6d3eced91'; 
 
-// Proxy configurado no vercel.json (Prod) e vite.config.ts (Dev)
-// Mapeia para https://api.pipedrive.com/api/v2
-const BASE_URL = 'https://api.pipedrive.com/api/v2'; 
-
+// Proxy agora aponta para a raiz da API (/api), permitindo escolher v1 ou v2 na chamada 
+const BASE_URL = "https://api.pipedrive.com/api"
 // IDs DE CAMPOS PERSONALIZADOS
 const CUSTOM_FIELDS = {
     SOURCE: 'source_field_key', 
@@ -18,13 +15,15 @@ const CUSTOM_FIELDS = {
 export class DataService {
   private deals: Deal[] = [];
   private stages: Stage[] = [];
+  // Cache para armazenar ID -> Nome do usuário
+  private usersCache: Map<number, string> = new Map();
 
   constructor() {
     // Inicialmente vazio
   }
 
   /**
-   * Helper para realizar fetch seguro, tratando erros de JSON/HTML e Status.
+   * Helper para realizar fetch seguro
    */
   private async safeFetch(url: string): Promise<any> {
     const response = await fetch(url);
@@ -44,89 +43,32 @@ export class DataService {
     }
   }
 
-  // Busca Estágios e Negócios
-  async fetchDeals(): Promise<void> {
-    if (!API_TOKEN) {
-        console.error("Token do Pipedrive não encontrado.");
-        return;
-    }
+  // --- 1. BUSCA DE USUÁRIOS (V1) ---
+  private async fetchUsers(): Promise<void> {
+    // Se já tiver cache, não busca novamente nesta sessão (ou adicione lógica de expiração se desejar)
+    if (this.usersCache.size > 0) return;
 
     try {
-        // 1. Buscar Estágios do Pipeline
-        await this.fetchStages();
+        console.log("Buscando usuários (V1)...");
+        const url = `${BASE_URL}/v1/users?api_token=${API_TOKEN}`;
+        const json = await this.safeFetch(url);
 
-        // 2. Buscar Negócios (Paginação via CURSOR para API v2)
-        let allDeals: any[] = [];
-        let cursor: string | null = null;
-        let hasMore = true;
-
-        while (hasMore) {
-            // Monta a URL com cursor se existir
-            const queryParams = new URLSearchParams({
-                api_token: API_TOKEN,
-                limit: '500',
+        if (json.data && Array.isArray(json.data)) {
+            json.data.forEach((u: any) => {
+                this.usersCache.set(u.id, u.name);
             });
-
-            if (cursor) {
-                queryParams.append('cursor', cursor);
-            }
-
-            const url = `${BASE_URL}/deals?${queryParams.toString()}`;
-            
-            const json = await this.safeFetch(url);
-            
-            if (json.data && Array.isArray(json.data)) {
-                allDeals = [...allDeals, ...json.data];
-                
-                // Lógica de paginação V2 (Cursor)
-                // A API v2 geralmente retorna next_cursor em additional_data ou meta
-                const nextCursor = json.additional_data?.next_cursor || json.meta?.next_cursor;
-                
-                if (nextCursor) {
-                    cursor = nextCursor;
-                } else {
-                    hasMore = false;
-                }
-            } else {
-                hasMore = false;
-            }
+            console.log(`Usuários carregados: ${this.usersCache.size}`);
         }
-
-        console.log(`Dados brutos carregados (V2): ${allDeals.length} negócios.`);
-
-        // 3. Mapear resposta do Pipedrive para nosso tipo Deal
-        this.deals = allDeals.map((d: any) => {
-            return {
-                id: d.id,
-                // V2 pode retornar 'name' em vez de 'title' dependendo do endpoint
-                title: d.title || d.name || 'Sem Título',
-                value: d.value || 0,
-                currency: d.currency || 'BRL',
-                // Fallback de status baseado em flags se status não vier explícito
-                status: d.status || (d.active_flag ? 'open' : 'closed'), 
-                pipeline_id: d.pipeline_id,
-                stage_id: d.stage_id,
-                add_time: d.add_time,
-                won_time: d.won_time,
-                lost_time: d.lost_time,
-                close_time: d.close_time,
-                owner_id: d.user_id?.id || d.user_id, // Pode vir como objeto ou ID
-                owner_name: d.user_id?.name || d.owner_name || 'Sem Dono',
-                lost_reason: d.lost_reason,
-                
-                products_count: d.products_count || 0, 
-                source: d[CUSTOM_FIELDS.SOURCE] || 'Outros' 
-            };
-        });
-
-    } catch (error) {
-        console.error("Erro fatal ao buscar dados do Pipedrive (V2):", error);
+    } catch (e) {
+        console.error("Erro ao buscar usuários:", e);
     }
   }
 
+  // --- 2. BUSCA DE ESTÁGIOS (V1) ---
   private async fetchStages(): Promise<void> {
       try {
-        const url = `${BASE_URL}/stages?api_token=${API_TOKEN}`;
+        // Stages geralmente ficam na v1
+        const url = `${BASE_URL}/v1/stages?api_token=${API_TOKEN}`;
         const json = await this.safeFetch(url);
         
         if (json.data) {
@@ -143,7 +85,86 @@ export class DataService {
       }
   }
 
-  // --- FILTROS E ANALYTICS ---
+  // --- 3. BUSCA DE NEGÓCIOS (V2) ---
+  async fetchDeals(): Promise<void> {
+    if (!API_TOKEN) {
+        console.error("Token do Pipedrive não encontrado.");
+        return;
+    }
+
+    try {
+        // Carrega dependências (Usuários e Estágios) antes dos Negócios
+        await Promise.all([this.fetchUsers(), this.fetchStages()]);
+
+        let allDeals: any[] = [];
+        let cursor: string | null = null;
+        let hasMore = true;
+
+        while (hasMore) {
+            const queryParams = new URLSearchParams({
+                api_token: API_TOKEN,
+                limit: '500',
+                // status: 'all_not_deleted' // V2 pode ter comportamento diferente, ajustando se necessário
+            });
+
+            if (cursor) {
+                queryParams.append('cursor', cursor);
+            }
+
+            // Endpoint V2
+            const url = `${BASE_URL}/v2/deals?${queryParams.toString()}`;
+            
+            const json = await this.safeFetch(url);
+            
+            if (json.data && Array.isArray(json.data)) {
+                allDeals = [...allDeals, ...json.data];
+                
+                const nextCursor = json.additional_data?.next_cursor || json.meta?.next_cursor;
+                
+                if (nextCursor) {
+                    cursor = nextCursor;
+                } else {
+                    hasMore = false;
+                }
+            } else {
+                hasMore = false;
+            }
+        }
+
+        console.log(`Dados brutos carregados (V2): ${allDeals.length} negócios.`);
+
+        this.deals = allDeals.map((d: any) => {
+            // Resolver ID e Nome do Dono
+            // Na v2, user_id pode vir apenas como ID (int) ou objeto dependendo do endpoint.
+            const userId = (typeof d.user_id === 'object' && d.user_id !== null) ? d.user_id.id : d.user_id;
+            const ownerName = this.usersCache.get(userId) || d.owner_name || 'Sem Dono';
+
+            return {
+                id: d.id,
+                title: d.title || d.name || 'Sem Título',
+                value: d.value || 0,
+                currency: d.currency || 'BRL',
+                status: d.status || (d.active_flag ? 'open' : 'closed'), 
+                pipeline_id: d.pipeline_id,
+                stage_id: d.stage_id,
+                add_time: d.add_time,
+                won_time: d.won_time,
+                lost_time: d.lost_time,
+                close_time: d.close_time,
+                owner_id: userId,
+                owner_name: ownerName, // Nome resolvido via Cache de Usuários
+                lost_reason: d.lost_reason,
+                products_count: d.products_count || 0, 
+                source: d[CUSTOM_FIELDS.SOURCE] || 'Outros' 
+            };
+        });
+
+    } catch (error) {
+        console.error("Erro fatal ao buscar dados do Pipedrive (V2):", error);
+    }
+  }
+
+  // --- FILTROS E ANALYTICS (Inalterados) ---
 
   private filterByMonth(deals: Deal[], month: string, dateField: keyof Deal = 'won_time'): Deal[] {
     return deals.filter(d => {
@@ -158,7 +179,6 @@ export class DataService {
     return date.toISOString().slice(0, 7);
   }
 
-  // 1. KPIs Principais
   getKPIs(month: string): { totalValue: KPI, count: KPI } {
     const currentWon = this.filterByMonth(this.deals.filter(d => d.status === 'won'), month, 'won_time');
     const prevMonth = this.getPreviousMonth(month);
@@ -193,7 +213,6 @@ export class DataService {
     };
   }
 
-  // 2. Distribuição de Planos
   getPlanDistribution(month: string): ChartData[] {
     const relevantDeals = this.filterByMonth(this.deals.filter(d => d.status === 'won'), month, 'won_time');
     const map = new Map<string, number>();
@@ -221,7 +240,6 @@ export class DataService {
     return data;
   }
 
-  // 3. Canais de Origem
   getSourceDistribution(month: string): ChartData[] {
     const relevantDeals = this.filterByMonth(this.deals.filter(d => d.status === 'won'), month, 'won_time');
     const map = new Map<string, number>();
@@ -243,7 +261,6 @@ export class DataService {
     return data;
   }
 
-  // 4. Métricas por Vendedor
   private aggregateSellerMetrics(deals: Deal[]): SellerMetric[] {
     const map = new Map<string, SellerMetric>();
     deals.forEach(d => {
@@ -269,7 +286,6 @@ export class DataService {
     return this.aggregateSellerMetrics([...won, ...lost]);
   }
 
-  // 5. Funil de Vendas
   getSalesFunnel(month: string): FunnelStep[] {
     const sortedStages = [...this.stages].sort((a, b) => (a.order_nr || 0) - (b.order_nr || 0));
     const funnelMap = new Map<number, FunnelStep>(); 
@@ -311,7 +327,6 @@ export class DataService {
     return funnel.filter(f => f.count > 0 || f.name.includes('Proposta') || f.name.includes('Negociação'));
   }
 
-  // Gráfico de Área
   getEvolutionData(status: 'won' | 'lost', monthStr: string): { totalValue: number, totalCount: number, data: ChartDataPoint[] } {
     const dateField = status === 'won' ? 'won_time' : 'lost_time';
     
@@ -342,7 +357,6 @@ export class DataService {
     return { totalValue, totalCount, data };
   }
 
-  // Métricas Consolidadas
   getPipelineMetrics(month: string): PipelineMetrics {
     const won = this.filterByMonth(this.deals.filter(d => d.status === 'won'), month, 'won_time');
     const lost = this.filterByMonth(this.deals.filter(d => d.status === 'lost'), month, 'lost_time');
