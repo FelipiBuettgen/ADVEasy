@@ -188,6 +188,12 @@ const App: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
+  const isInCurrentMonth = (dateValue: string) => {
+    const today = new Date();
+    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    return dateValue.startsWith(monthKey);
+  };
+
   const getMonthRange = (monthValue: string) => {
     if (!monthValue) return { start: '', end: '' };
     const [year, month] = monthValue.split('-').map(Number);
@@ -289,14 +295,21 @@ const App: React.FC = () => {
         let dateRef: string | null = deal.add_time;
         if (metric === 'deals_solicitations') {
           if (!solicitationsStageIds.includes(deal.stage_id)) return;
-          dateRef = deal.stage_change_time || deal.add_time;
+          if (!deal.stage_change_time) return;
+          dateRef = deal.stage_change_time;
         }
         if (metric === 'deals_won') {
           if (!isRecoveredDeal(deal)) return;
-          dateRef = deal.stage_change_time || deal.won_time;
+          if (!deal.stage_change_time) return;
+          dateRef = deal.stage_change_time;
         }
         if (metric === 'deals_lost') dateRef = deal.lost_time;
-        if (metric === 'deals_canceled') dateRef = deal.stage_change_time || null;
+        if (metric === 'deals_canceled') {
+          const cancelDate = deal.cancel_date;
+          if (!cancelDate) return;
+          if (!isInCurrentMonth(cancelDate.slice(0, 10))) return;
+          dateRef = cancelDate;
+        }
         if (metric === 'deals_canceled' && !canceledStageIds.includes(deal.stage_id)) return;
         if (!dateRef) return;
         const dateKey = dateRef.slice(0, 10);
@@ -339,7 +352,14 @@ const App: React.FC = () => {
         let dateRef = deal.add_time;
         if (metric === 'deals_won') {
           if (!isRecoveredDeal(deal)) return;
-          dateRef = deal.stage_change_time || deal.won_time || deal.add_time;
+          if (!deal.stage_change_time) return;
+          dateRef = deal.stage_change_time;
+        }
+        if (metric === 'deals_canceled') {
+          const cancelDate = deal.cancel_date;
+          if (!cancelDate) return;
+          if (!isInCurrentMonth(cancelDate.slice(0, 10))) return;
+          dateRef = cancelDate;
         }
         if (!dateRef) return;
         const dateKey = dateRef.slice(0, 10);
@@ -393,14 +413,21 @@ const App: React.FC = () => {
       let dateRef: string | null = deal.add_time;
       if (metric === 'deals_solicitations') {
         if (!solicitationsStageIds.includes(deal.stage_id)) return sum;
-        dateRef = deal.stage_change_time || deal.add_time;
+        if (!deal.stage_change_time) return sum;
+        dateRef = deal.stage_change_time;
       }
       if (metric === 'deals_won') {
         if (!isRecoveredDeal(deal)) return sum;
-        dateRef = deal.stage_change_time || deal.won_time;
+        if (!deal.stage_change_time) return sum;
+        dateRef = deal.stage_change_time;
       }
       if (metric === 'deals_lost') dateRef = deal.lost_time;
-      if (metric === 'deals_canceled') dateRef = deal.stage_change_time || null;
+      if (metric === 'deals_canceled') {
+        const cancelDate = deal.cancel_date;
+        if (!cancelDate) return sum;
+        if (!isInCurrentMonth(cancelDate.slice(0, 10))) return sum;
+        dateRef = cancelDate;
+      }
       if (metric === 'deals_canceled' && !canceledStageIds.includes(deal.stage_id)) return sum;
       if (!dateRef) return sum;
       if (startDate || endDate) {
@@ -418,13 +445,20 @@ const App: React.FC = () => {
       let dateRef: string | null = deal.add_time;
       if (metric === 'deals_solicitations') {
         if (!solicitationsStageIds.includes(deal.stage_id)) return false;
-        dateRef = deal.stage_change_time || deal.add_time;
+        if (!deal.stage_change_time) return false;
+        dateRef = deal.stage_change_time;
       }
       if (metric === 'deals_won') {
         if (!isRecoveredDeal(deal)) return false;
-        dateRef = deal.stage_change_time || deal.won_time;
+        if (!deal.stage_change_time) return false;
+        dateRef = deal.stage_change_time;
       }
-      if (metric === 'deals_canceled') dateRef = deal.stage_change_time || null;
+      if (metric === 'deals_canceled') {
+        const cancelDate = deal.cancel_date;
+        if (!cancelDate) return false;
+        if (!isInCurrentMonth(cancelDate.slice(0, 10))) return false;
+        dateRef = cancelDate;
+      }
       if (metric === 'deals_canceled' && !canceledStageIds.includes(deal.stage_id)) return false;
       if (!dateRef) return false;
       return true;
@@ -442,6 +476,10 @@ const App: React.FC = () => {
   const exportCanceledDeals = () => {
     const rows = deals
       .filter((deal) => canceledStageIds.includes(deal.stage_id))
+      .filter((deal) => {
+        const cancelDate = deal.cancel_date;
+        return !!cancelDate && isInCurrentMonth(cancelDate.slice(0, 10));
+      })
       .map((deal) => ({
         ID: deal.id,
         Titulo: deal.title,
@@ -449,7 +487,7 @@ const App: React.FC = () => {
         Estagio: stageNameById.get(deal.stage_id) || 'Sem estágio',
         Valor: deal.value,
         Moeda: deal.currency,
-        DataCancelamento: deal.stage_change_time || deal.lost_time || '',
+        DataCancelamento: deal.cancel_date || '',
         PipelineId: deal.pipeline_id
       }));
 
@@ -457,6 +495,35 @@ const App: React.FC = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Cancelados');
     XLSX.writeFile(workbook, 'deals_cancelados.xlsx');
+  };
+
+  const exportFilteredDeals = (metric: 'deals_canceled' | 'deals_won' | 'deals_solicitations') => {
+    const rows = getDealsForMetric(metric).map((deal) => ({
+      ID: deal.id,
+      Titulo: deal.title,
+      Dono: deal.owner_name,
+      Estagio: stageNameById.get(deal.stage_id) || 'Sem estágio',
+      Valor: deal.value,
+      Moeda: deal.currency,
+      DataReferencia:
+        metric === 'deals_canceled'
+          ? deal.cancel_date || ''
+          : metric === 'deals_won'
+            ? deal.stage_change_time || deal.won_time || ''
+            : deal.stage_change_time || deal.add_time || '',
+      PipelineId: deal.pipeline_id
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    const sheetName =
+      metric === 'deals_canceled'
+        ? 'Cancelados'
+        : metric === 'deals_won'
+          ? 'Recuperados'
+          : 'Solicitacoes';
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    XLSX.writeFile(workbook, `deals_${sheetName.toLowerCase()}.xlsx`);
   };
 
   const handleChartClick = (
@@ -482,14 +549,21 @@ const App: React.FC = () => {
         let dateRef: string | null = deal.add_time;
         if (metric === 'deals_solicitations') {
           if (!solicitationsStageIds.includes(deal.stage_id)) return false;
-          dateRef = deal.stage_change_time || deal.add_time;
+          if (!deal.stage_change_time) return false;
+          dateRef = deal.stage_change_time;
         }
         if (metric === 'deals_won') {
           if (!isRecoveredDeal(deal)) return false;
-          dateRef = deal.stage_change_time || deal.won_time;
+          if (!deal.stage_change_time) return false;
+          dateRef = deal.stage_change_time;
         }
         if (metric === 'deals_lost') dateRef = deal.lost_time;
-        if (metric === 'deals_canceled') dateRef = deal.stage_change_time || null;
+        if (metric === 'deals_canceled') {
+          const cancelDate = deal.cancel_date;
+          if (!cancelDate) return false;
+          if (!isInCurrentMonth(cancelDate.slice(0, 10))) return false;
+          dateRef = cancelDate;
+        }
         if (metric === 'deals_canceled' && !canceledStageIds.includes(deal.stage_id)) return false;
         if (!dateRef) return false;
         if (!startDate && !endDate) return true;
@@ -1077,7 +1151,10 @@ const App: React.FC = () => {
                     ? 'Deals recuperados'
                     : 'Deals solicitados'}
               </h2>
-              <button className="ghost-button" onClick={() => setIsDealsModalOpen(false)}>Fechar</button>
+              <div className="panel-actions">
+                <button className="ghost-button" onClick={() => exportFilteredDeals(dealsModalMetric)}>Exportar</button>
+                <button className="ghost-button" onClick={() => setIsDealsModalOpen(false)}>Fechar</button>
+              </div>
             </div>
             <p className="panel-subtitle">
               {dealsModalDate ? `Data: ${new Intl.DateTimeFormat('pt-BR').format(new Date(dealsModalDate))}` : 'Todos os períodos'}

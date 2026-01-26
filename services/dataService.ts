@@ -10,7 +10,8 @@ const BASE_URL = 'https://api.pipedrive.com/api';
 // IDs DE CAMPOS PERSONALIZADOS
 const CUSTOM_FIELDS = {
     SOURCE: 'source_field_key', 
-    PLAN: 'plan_field_key'      
+  PLAN: 'plan_field_key',
+  CANCEL_DATE: '47e1a8022c61231cffcf10fc6ea46b1d9fadd91f'
 };
 
 export class DataService {
@@ -177,6 +178,7 @@ export class DataService {
                 stage_id: d.stage_id,
                 add_time: d.add_time,
                 stage_change_time: d.stage_change_time || null,
+              cancel_date: d[CUSTOM_FIELDS.CANCEL_DATE] || d.custom_fields?.[CUSTOM_FIELDS.CANCEL_DATE] || null,
                 won_time: d.won_time,
                 lost_time: d.lost_time,
                 close_time: d.close_time,
@@ -184,8 +186,8 @@ export class DataService {
                 owner_name: ownerName, 
                 lost_reason: d.lost_reason,
                 products_count: d.products_count || 0, 
-                source: d[CUSTOM_FIELDS.SOURCE] || 'Outros',
-                plan: d[CUSTOM_FIELDS.PLAN] || null
+              source: d[CUSTOM_FIELDS.SOURCE] || d.custom_fields?.[CUSTOM_FIELDS.SOURCE] || 'Outros',
+              plan: d[CUSTOM_FIELDS.PLAN] || d.custom_fields?.[CUSTOM_FIELDS.PLAN] || null
             };
         });
 

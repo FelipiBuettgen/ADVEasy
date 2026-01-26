@@ -8,6 +8,7 @@ export interface Deal {
   stage_id: number;
   add_time: string;
   stage_change_time?: string | null;
+  cancel_date?: string | null;
   won_time: string | null;
   lost_time: string | null;
   close_time: string | null;

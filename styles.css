@@ -414,6 +414,11 @@ body {
   margin: 0;
 }
 
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .panel-subtitle {
   margin: 4px 0 0;
   color: #9ca3af;
