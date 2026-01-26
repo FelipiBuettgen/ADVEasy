@@ -7,6 +7,7 @@ export interface Deal {
   pipeline_id: number;
   stage_id: number;
   add_time: string;
+  stage_change_time?: string | null;
   won_time: string | null;
   lost_time: string | null;
   close_time: string | null;
@@ -15,6 +16,23 @@ export interface Deal {
   lost_reason: string | null;
   products_count?: number; // Mocked field for "Planos"
   source?: string; // Mocked field for "Canais"
+  plan?: string; // Custom field for plan
+}
+
+export interface Activity {
+  id: number;
+  subject: string;
+  type: string;
+  due_date: string | null;
+  due_time?: string | null;
+  done: boolean;
+  add_time?: string | null;
+  update_time?: string | null;
+  owner_id?: number | null;
+  deal_id?: number | null;
+  person_id?: number | null;
+  org_id?: number | null;
+  note?: string | null;
 }
 
 export interface Stage {

@@ -1,4 +1,4 @@
-import { Deal, Stage, KPI, ChartData, FunnelStep, SellerMetric, ChartDataPoint, PipelineMetrics } from '../types';
+import { Deal, Stage, KPI, ChartData, FunnelStep, SellerMetric, ChartDataPoint, PipelineMetrics, Activity } from '../types';
 import * as d3 from 'd3';
 
 // --- CONFIGURAÇÃO ---
@@ -16,9 +16,11 @@ const CUSTOM_FIELDS = {
 export class DataService {
   private deals: Deal[] = [];
   private stages: Stage[] = [];
+  private activities: Activity[] = [];
   // Cache para armazenar ID -> Nome do usuário
   private usersCache: Map<number, string> = new Map();
   private isDealsLoaded = false;
+  private isActivitiesLoaded = false;
 
   constructor() {
     // Inicialmente vazio
@@ -115,7 +117,7 @@ export class DataService {
 
     try {
         // Carrega dependências (Usuários e Estágios) antes dos Negócios
-        await Promise.all([this.fetchUsers(), this.fetchStages()]);
+      await Promise.all([this.fetchUsers(), this.fetchStages()]);
 
         let allDeals: any[] = [];
         let cursor: string | null = null;
@@ -125,6 +127,7 @@ export class DataService {
             const queryParams = new URLSearchParams({
                 api_token: API_TOKEN,
                 limit: '500',
+              pipeline_id: '5'
             });
 
             if (cursor) {
@@ -173,6 +176,7 @@ export class DataService {
                 pipeline_id: d.pipeline_id,
                 stage_id: d.stage_id,
                 add_time: d.add_time,
+                stage_change_time: d.stage_change_time || null,
                 won_time: d.won_time,
                 lost_time: d.lost_time,
                 close_time: d.close_time,
@@ -180,7 +184,8 @@ export class DataService {
                 owner_name: ownerName, 
                 lost_reason: d.lost_reason,
                 products_count: d.products_count || 0, 
-                source: d[CUSTOM_FIELDS.SOURCE] || 'Outros' 
+                source: d[CUSTOM_FIELDS.SOURCE] || 'Outros',
+                plan: d[CUSTOM_FIELDS.PLAN] || null
             };
         });
 
@@ -191,6 +196,20 @@ export class DataService {
     }
   }
 
+  async refreshDeals(): Promise<void> {
+    this.isDealsLoaded = false;
+    this.deals = [];
+    await this.fetchDeals();
+  }
+
+    // --- 4. BUSCA DE ATIVIDADES (V2) ---
+    async fetchActivities(): Promise<void> {
+      // Lógica removida do SaaS. Mantém vazio por enquanto.
+      if (this.isActivitiesLoaded) return;
+      this.activities = [];
+      this.isActivitiesLoaded = true;
+    }
+
   // --- FILTROS E ANALYTICS (Inalterados) ---
 
   private filterByMonth(deals: Deal[], month: string, dateField: keyof Deal = 'won_time'): Deal[] {
@@ -198,6 +217,18 @@ export class DataService {
       const date = d[dateField] as string | null;
       return date && date.startsWith(month);
     });
+  }
+
+  getDeals(): Deal[] {
+    return this.deals;
+  }
+
+  getActivities(): Activity[] {
+    return this.activities;
+  }
+
+  getStages(): Stage[] {
+    return this.stages;
   }
 
   private getPreviousMonth(month: string): string {
@@ -314,7 +345,14 @@ export class DataService {
   }
 
   getSalesFunnel(month: string): FunnelStep[] {
-    const sortedStages = [...this.stages].sort((a, b) => (a.order_nr || 0) - (b.order_nr || 0));
+    const targetPipelineId = 5;
+    const targetPipelineName = '🎯CS | AdvEasy';
+    const sortedStages = this.stages
+      .filter(
+        (stage) =>
+          stage.pipeline_id === targetPipelineId || stage.pipeline_name === targetPipelineName
+      )
+      .sort((a, b) => (a.order_nr || 0) - (b.order_nr || 0));
     const funnelMap = new Map<number, FunnelStep>(); 
 
     sortedStages.forEach(stage => {
@@ -326,9 +364,12 @@ export class DataService {
         });
     });
     
-    const wonInMonth = this.filterByMonth(this.deals.filter(d => d.status === 'won'), month, 'won_time');
-    const lostInMonth = this.filterByMonth(this.deals.filter(d => d.status === 'lost'), month, 'lost_time');
-    const allOpen = this.deals.filter(d => d.status === 'open');
+    const dealsInPipeline = this.deals.filter(
+      (deal) => deal.pipeline_id === targetPipelineId
+    );
+    const wonInMonth = this.filterByMonth(dealsInPipeline.filter(d => d.status === 'won'), month, 'won_time');
+    const lostInMonth = this.filterByMonth(dealsInPipeline.filter(d => d.status === 'lost'), month, 'lost_time');
+    const allOpen = dealsInPipeline.filter(d => d.status === 'open');
 
     const relevantDeals = [...wonInMonth, ...lostInMonth, ...allOpen];
 

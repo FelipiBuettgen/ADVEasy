@@ -24,29 +24,29 @@ const EvolutionChart: React.FC<EvolutionChartProps> = ({
   const gradientId = `gradient-${title.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
-    <div className="bg-adv-card rounded-xl p-6 w-full shadow-lg border border-gray-800 flex flex-col h-[300px]">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex gap-4">
-          <div className="p-3 bg-gray-800/50 rounded-lg h-fit border border-gray-700">
+    <div className="card evolution-card">
+      <div className="evolution-header">
+        <div className="evolution-info">
+          <div className="icon-box">
             {icon}
           </div>
           <div>
-            <h3 className="text-white font-bold text-lg italic uppercase tracking-wide">{title}</h3>
-            <p className="text-gray-400 text-sm font-light">{subtitle}</p>
+            <h3 className="evolution-title">{title}</h3>
+            <p className="evolution-subtitle">{subtitle}</p>
           </div>
         </div>
-        <div className="text-right">
-            <p className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-1">
+        <div className="evolution-totals">
+            <p className="evolution-totals-label">
                 {title.includes('CANCEL') ? 'TOTAL CANCELADO' : 'TOTAL RECUPERADO'}
             </p>
-            <p className={`text-2xl font-bold ${color === '#ff3366' ? 'text-adv-red' : 'text-adv-green'}`}>
+            <p className={`evolution-totals-value ${color === '#ff3366' ? 'status-danger' : 'status-success'}`}>
                 {formatCurrency(totalValue)}
             </p>
-            <p className="text-gray-500 text-xs font-medium">{totalCount} CONTRATOS</p>
+            <p className="evolution-totals-count">{totalCount} CONTRATOS</p>
         </div>
       </div>
 
-      <div className="flex-1 w-full min-h-0">
+      <div className="evolution-chart">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
             <defs>

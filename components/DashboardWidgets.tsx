@@ -12,23 +12,23 @@ export const KPICard: React.FC<{ kpi: KPI, icon?: React.ReactNode }> = ({ kpi, i
   };
 
   return (
-    <div className="bg-adv-card p-5 rounded-lg border border-gray-800 h-full flex flex-col justify-between transition-all duration-300 hover:border-adv-gold hover:shadow-lg group">
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex gap-2 items-center text-gray-400 text-sm font-bold uppercase tracking-wider group-hover:text-adv-gold transition-colors">
-          {icon && <span className="text-adv-gold">{icon}</span>}
+    <div className="card card-hover kpi-card">
+      <div className="kpi-header">
+        <div className="kpi-label">
+          {icon && <span className="kpi-icon">{icon}</span>}
           {kpi.label}
         </div>
       </div>
       
-      <div className="text-center py-4">
+      <div className="kpi-body">
          {kpi.trend !== undefined && (
-             <div className={`text-xs font-bold mb-2 flex justify-center items-center gap-1 ${kpi.trend > 0 ? 'text-adv-green' : 'text-adv-red'}`}>
+             <div className={`kpi-trend ${kpi.trend > 0 ? 'status-success' : 'status-danger'}`}>
                 <span>{kpi.trend > 0 ? '▲' : '▼'}</span>
                 {kpi.trend}%
              </div>
          )}
-         <div className="text-3xl font-black text-white tracking-tight">{formatValue(kpi.value)}</div>
-         {kpi.subValue && <div className="text-xs text-gray-500 mt-2 font-medium">{kpi.subValue}</div>}
+         <div className="kpi-value">{formatValue(kpi.value)}</div>
+         {kpi.subValue && <div className="kpi-subvalue">{kpi.subValue}</div>}
       </div>
     </div>
   );
@@ -37,15 +37,15 @@ export const KPICard: React.FC<{ kpi: KPI, icon?: React.ReactNode }> = ({ kpi, i
 // --- Seller Performance (Horizontal Stacked Bar) ---
 export const SellerChart: React.FC<{ data: SellerMetric[], title: string }> = ({ data, title }) => {
   return (
-    <div className="bg-adv-card p-5 rounded-lg border border-gray-800 h-full flex flex-col transition-all duration-300 hover:border-adv-gold">
-      <div className="flex justify-between items-center mb-4 shrink-0">
-         <h3 className="text-gray-300 font-bold text-xs uppercase flex items-center gap-2">
-            <span className="w-1 h-3 bg-adv-gold rounded-full"></span>
-            {title}
-         </h3>
-         <span className="text-[10px] text-gray-500 font-semibold bg-gray-800 px-2 py-0.5 rounded">ESTE MÊS</span>
-      </div>
-      <div className="flex-grow min-h-0">
+   <div className="card card-hover seller-card">
+    <div className="card-header">
+      <h3 className="section-title">
+        <span className="section-title-bar"></span>
+        {title}
+      </h3>
+      <span className="badge-muted">ESTE MÊS</span>
+    </div>
+    <div className="chart-body">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart layout="vertical" data={data} barSize={16} margin={{ left: 10, right: 10 }}>
             <XAxis type="number" hide />
@@ -67,10 +67,10 @@ export const SellerChart: React.FC<{ data: SellerMetric[], title: string }> = ({
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex gap-3 mt-2 justify-end shrink-0">
-         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#5b7afb]"></div><span className="text-[10px] text-gray-400 font-medium">Aberto</span></div>
-         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#ff3366]"></div><span className="text-[10px] text-gray-400 font-medium">Perdido</span></div>
-         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#00d68f]"></div><span className="text-[10px] text-gray-400 font-medium">Ganho</span></div>
+      <div className="legend">
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#5b7afb' }}></div><span>Aberto</span></div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#ff3366' }}></div><span>Perdido</span></div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: '#00d68f' }}></div><span>Ganho</span></div>
       </div>
     </div>
   );
@@ -81,13 +81,13 @@ export const DonutWidget: React.FC<{ data: ChartData[], title: string }> = ({ da
   const total = data.reduce((a, b) => a + b.value, 0);
 
   return (
-    <div className="bg-adv-card p-5 rounded-lg border border-gray-800 h-full relative flex flex-col transition-all duration-300 hover:border-adv-gold">
-       <h3 className="text-gray-300 font-bold text-xs uppercase flex items-center gap-2 mb-2 shrink-0">
-            <span className="w-1 h-3 bg-adv-gold rounded-full"></span>
+    <div className="card card-hover donut-card">
+       <h3 className="section-title">
+            <span className="section-title-bar"></span>
             {title}
        </h3>
        
-       <div className="flex-grow min-h-0 relative">
+       <div className="donut-chart">
          <ResponsiveContainer width="100%" height="100%">
            <PieChart>
              <Pie
@@ -117,9 +117,9 @@ export const DonutWidget: React.FC<{ data: ChartData[], title: string }> = ({ da
          </ResponsiveContainer>
          
          {/* Center Text */}
-         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] text-center pointer-events-none">
-             <span className="text-2xl font-black text-white tracking-tight block">{total}</span>
-             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total</span>
+         <div className="donut-center">
+             <span className="donut-total">{total}</span>
+             <span className="donut-label">Total</span>
          </div>
        </div>
     </div>
@@ -129,15 +129,15 @@ export const DonutWidget: React.FC<{ data: ChartData[], title: string }> = ({ da
 // --- Funnel Chart ---
 export const FunnelWidget: React.FC<{ data: FunnelStep[], title: string }> = ({ data, title }) => {
     return (
-      <div className="bg-adv-card p-6 rounded-lg border border-gray-800 w-full transition-all duration-300 hover:border-adv-gold">
-        <div className="flex justify-between mb-6">
-            <h3 className="text-gray-300 font-bold text-xs uppercase flex items-center gap-2">
-                <span className="w-1 h-3 bg-adv-gold rounded-full"></span>
+      <div className="card card-hover funnel-card">
+        <div className="card-header">
+            <h3 className="section-title">
+                <span className="section-title-bar"></span>
                 {title}
             </h3>
         </div>
         
-        <div className="h-[300px] w-full relative">
+        <div className="funnel-chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} barSize={100}>
                 <XAxis 
@@ -165,11 +165,11 @@ export const FunnelWidget: React.FC<{ data: FunnelStep[], title: string }> = ({ 
           </ResponsiveContainer>
           
           {/* Conversion Badges Overlay */}
-          <div className="absolute top-1/2 left-0 w-full flex justify-between px-[6%] pointer-events-none">
+            <div className="funnel-badges">
                 {data.map((step, idx) => (
                     idx < data.length - 1 && (
-                        <div key={idx} className="flex-1 flex justify-end items-center -mr-8 z-10">
-                            <div className="bg-[#1f2937] text-white text-[10px] font-bold px-2 py-1 rounded border border-gray-700 shadow-xl">
+                  <div key={idx} className="funnel-badge">
+                    <div className="funnel-badge-label">
                                 {step.conversionRate}%
                             </div>
                         </div>
@@ -178,10 +178,10 @@ export const FunnelWidget: React.FC<{ data: FunnelStep[], title: string }> = ({ 
           </div>
 
           {/* Value Labels on top of bars */}
-          <div className="absolute top-0 left-0 w-full h-full flex items-end justify-between px-[5%] pointer-events-none pb-10">
+            <div className="funnel-values">
                 {data.map((step, idx) => (
-                    <div key={idx} className="flex-1 text-center mb-[calc(100%-20px)] transform translate-y-[-24px]">
-                        <span className="text-white font-black text-sm block drop-shadow-md">{step.count}</span>
+                <div key={idx} className="funnel-value">
+                  <span>{step.count}</span>
                     </div>
                 ))}
           </div>
