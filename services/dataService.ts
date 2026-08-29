@@ -2,7 +2,7 @@ import { Deal, Stage, KPI, ChartData, FunnelStep, SellerMetric, ChartDataPoint, 
 import * as d3 from 'd3';
 
 // --- CONFIGURAÇÃO ---
-const API_TOKEN = (import.meta as any).env?.VITE_PIPEDRIVE_TOKEN || '1fc6fffd00cbb8c53be5778629b176c6d3eced91'; 
+const API_TOKEN = (import.meta as any).env?.VITE_PIPEDRIVE_TOKEN || '';
 
 
 const BASE_URL = 'https://api.pipedrive.com/api'; 
