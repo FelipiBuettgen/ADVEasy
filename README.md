@@ -1,20 +1,22 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ADVEasy Dashboard
 
-# Run and deploy your AI Studio app
+Dashboard em React desenvolvido sob demanda para acompanhamento comercial, com integração em tempo real à API do Pipedrive (CRM).
 
-This contains everything you need to run your app locally.
+## Funcionalidades
 
-View your app in AI Studio: https://ai.studio/apps/drive/1aAs4tr12sGHvBcOsl8G0Qi1KqOxawB7L
+- Visualização de negócios (deals) com filtragem por mês e status.
+- Gráficos e métricas comerciais (Recharts e D3).
+- Integração direta com a API do Pipedrive (v1 e v2) via proxy configurado no Vite.
+- Exportação/leitura de dados em planilhas (xlsx).
 
-## Run Locally
+## Tecnologias
 
-**Prerequisites:**  Node.js
+- React 18 + TypeScript
+- Vite
+- Tailwind CSS
+- Recharts, D3
+- API do Pipedrive
 
+## Status
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Projeto desenvolvido a pedido de um cliente em janeiro de 2026, evoluindo de um dashboard com dados de exemplo para integração completa com dados reais do Pipedrive.
